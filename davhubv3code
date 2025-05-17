@@ -1,0 +1,485 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "DavDev Hub",
+    LoadingTitle = "Welcome",
+    LoadingSubtitle = "by Dav.Dev",
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = nil,
+        FileName = "Big Hub"
+    },
+    Discord = {
+        Enabled = false,
+        Invite = "noinvitelink",
+        RememberJoins = true
+    },
+    KeySystem = false
+})
+
+-- Aguarda o personagem local carregar
+local player = game.Players.LocalPlayer
+local function waitForCharacter()
+    if not player.Character then
+        player.CharacterAdded:Wait()
+    end
+    return player.Character
+end
+
+-- Player Tab
+local PlayerTab = Window:CreateTab("Player", 4483362458)
+
+PlayerTab:CreateSlider({
+    Name = "WalkSpeed",
+    Range = {1, 100},
+    Increment = 1,
+    Suffix = "Speed",
+    CurrentValue = 16,
+    Flag = "Slider1",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            local char = player.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.WalkSpeed = Value
+            else
+                warn("WalkSpeed: Personagem ou Humanoid não encontrado")
+            end
+        end)
+        if not success then
+            warn("WalkSpeed Callback Error: " .. err)
+        end
+    end,
+})
+
+PlayerTab:CreateSlider({
+    Name = "Jump Height",
+    Range = {10, 500},
+    Increment = 1,
+    Suffix = "Height",
+    CurrentValue = 50,
+    Flag = "Slider3",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            local char = player.Character
+            if char and char:FindFirstChild("Humanoid") then
+                char.Humanoid.JumpPower = Value
+            else
+                warn("Jump Height: Personagem ou Humanoid não encontrado")
+            end
+        end)
+        if not success then
+            warn("Jump Height Callback Error: " .. err)
+        end
+    end,
+})
+
+-- Fly Tab
+local FlyTab = Window:CreateTab("Fly", 4483362458)
+
+local flying = false
+local flySpeed = 50
+local flyBV = nil
+local flyBG = nil
+local flyConnection = nil
+
+local function StartFly()
+    local success, err = pcall(function()
+        if flyBV or flyBG or flyConnection then
+            StopFly()
+        end
+        local char = waitForCharacter()
+        local humanoidRootPart = char:WaitForChild("HumanoidRootPart", 5)
+        local humanoid = char:FindFirstChild("Humanoid")
+
+        if not humanoidRootPart or not humanoid then
+            warn("Fly: HumanoidRootPart ou Humanoid não encontrado")
+            return
+        end
+
+        humanoid.PlatformStand = true
+        flyBV = Instance.new("BodyVelocity")
+        flyBV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        flyBV.Velocity = Vector3.new(0, 0, 0)
+        flyBV.Parent = humanoidRootPart
+
+        flyBG = Instance.new("BodyGyro")
+        flyBG.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        flyBG.CFrame = humanoidRootPart.CFrame
+        flyBG.Parent = humanoidRootPart
+
+        flyConnection = game:GetService("RunService").Stepped:Connect(function()
+            if flying and flyBV and flyBG and humanoidRootPart then
+                local cam = workspace.CurrentCamera
+                local moveDirection = Vector3.new(0, 0, 0)
+
+                local uis = game:GetService("UserInputService")
+                if uis:IsKeyDown(Enum.KeyCode.W) then
+                    moveDirection = moveDirection + cam.CFrame.LookVector
+                end
+                if uis:IsKeyDown(Enum.KeyCode.S) then
+                    moveDirection = moveDirection - cam.CFrame.LookVector
+                end
+                if uis:IsKeyDown(Enum.KeyCode.A) then
+                    moveDirection = moveDirection - cam.CFrame.RightVector
+                end
+                if uis:IsKeyDown(Enum.KeyCode.D) then
+                    moveDirection = moveDirection + cam.CFrame.RightVector
+                end
+                if uis:IsKeyDown(Enum.KeyCode.Space) then
+                    moveDirection = moveDirection + Vector3.new(0, 1, 0)
+                end
+                if uis:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    moveDirection = moveDirection - Vector3.new(0, 1, 0)
+                end
+
+                if moveDirection.Magnitude > 0 then
+                    flyBV.Velocity = moveDirection.Unit * flySpeed
+                    flyBG.CFrame = cam.CFrame
+                else
+                    flyBV.Velocity = Vector3.new(0, 0, 0)
+                end
+            end
+        end)
+    end)
+    if not success then
+        warn("StartFly Error: " .. err)
+    end
+end
+
+local function StopFly()
+    local success, err = pcall(function()
+        if flyBV then
+            flyBV:Destroy()
+            flyBV = nil
+        end
+        if flyBG then
+            flyBG:Destroy()
+            flyBG = nil
+        end
+        if flyConnection then
+            flyConnection:Disconnect()
+            flyConnection = nil
+        end
+        local char = player.Character
+        if char and char:FindFirstChild("Humanoid") then
+            char.Humanoid.PlatformStand = false
+        end
+    end)
+    if not success then
+        warn("StopFly Error: " .. err)
+    end
+end
+
+local characterAddedConnection
+if characterAddedConnection then
+    characterAddedConnection:Disconnect()
+end
+characterAddedConnection = player.CharacterAdded:Connect(function()
+    if flying then
+        task.wait(0.5)
+        StartFly()
+    end
+end)
+
+FlyTab:CreateToggle({
+    Name = "Fly (WASD + Space + Ctrl)",
+    CurrentValue = false,
+    Flag = "FlyToggle",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            flying = Value
+            if flying then
+                StartFly()
+            else
+                StopFly()
+            end
+        end)
+        if not success then
+            warn("Fly Toggle Callback Error: " .. err)
+        end
+    end,
+})
+
+FlyTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {10, 300},
+    Increment = 5,
+    Suffix = "Speed",
+    CurrentValue = 50,
+    Flag = "FlySpeed",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            flySpeed = Value
+        end)
+        if not success then
+            warn("Fly Speed Callback Error: " .. err)
+        end
+    end,
+})
+
+-- ESP Tab
+local ESPTab = Window:CreateTab("ESP", 4483362458)
+
+local espEnabled = false
+local tracersEnabled = false
+local highlightColor = Color3.fromRGB(255, 0, 0)
+local highlights = {}
+local tracers = {}
+local espConnection = nil
+
+local function CreateHighlight(p)
+    local success, err = pcall(function()
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") then
+            local highlight = Instance.new("Highlight")
+            highlight.Adornee = p.Character
+            highlight.FillColor = highlightColor
+            highlight.OutlineColor = highlightColor
+            highlight.FillTransparency = 0.5
+            highlight.OutlineTransparency = 0
+            highlight.Parent = p.Character
+            highlights[p] = highlight
+        else
+            warn("CreateHighlight: Jogador inválido ou sem HumanoidRootPart/Humanoid")
+        end
+    end)
+    if not success then
+        warn("CreateHighlight Error: " .. err)
+    end
+end
+
+local function CreateTracer(p)
+    local success, err = pcall(function()
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local localChar = player.Character
+            if not localChar or not localChar:FindFirstChild("HumanoidRootPart") then
+                warn("CreateTracer: Personagem local não encontrado")
+                return
+            end
+
+            local attachment0 = Instance.new("Attachment")
+            attachment0.Position = Vector3.new(0, 2, 0) -- Acima da cabeça
+            attachment0.Parent = localChar:FindFirstChild("HumanoidRootPart")
+
+            local attachment1 = Instance.new("Attachment")
+            attachment1.Position = Vector3.new(0, 2, 0) -- Acima da cabeça
+            attachment1.Parent = p.Character:FindFirstChild("HumanoidRootPart")
+
+            if not attachment0.Parent or not attachment1.Parent then
+                attachment0:Destroy()
+                attachment1:Destroy()
+                warn("CreateTracer: Attachments inválidos")
+                return
+            end
+
+            local beam = Instance.new("Beam")
+            beam.Color = ColorSequence.new(highlightColor)
+            beam.Width0 = 0.1
+            beam.Width1 = 0.1
+            beam.Transparency = NumberSequence.new(0)
+            beam.Attachment0 = attachment0
+            beam.Attachment1 = attachment1
+            beam.Parent = workspace:FindFirstChild("Terrain") or workspace
+            tracers[p] = {beam = beam, attachment0 = attachment0, attachment1 = attachment1}
+        else
+            warn("CreateTracer: Jogador inválido ou sem HumanoidRootPart")
+        end
+    end)
+    if not success then
+        warn("CreateTracer Error: " .. err)
+    end
+end
+
+local function ClearESP()
+    local success, err = pcall(function()
+        for p, highlight in pairs(highlights) do
+            if highlight then
+                highlight:Destroy()
+                highlights[p] = nil
+            end
+        end
+        for p, tracer in pairs(tracers) do
+            if tracer then
+                tracer.beam:Destroy()
+                tracer.attachment0:Destroy()
+                tracer.attachment1:Destroy()
+                tracers[p] = nil
+            end
+        end
+    end)
+    if not success then
+        warn("ClearESP Error: " .. err)
+    end
+end
+
+local function UpdateESP()
+    local success, err = pcall(function()
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Humanoid") then
+                if espEnabled and not highlights[p] then
+                    CreateHighlight(p)
+                elseif not espEnabled and highlights[p] then
+                    highlights[p]:Destroy()
+                    highlights[p] = nil
+                end
+                if tracersEnabled and not tracers[p] then
+                    CreateTracer(p)
+                elseif not tracersEnabled and tracers[p] then
+                    tracers[p].beam:Destroy()
+                    tracers[p].attachment0:Destroy()
+                    tracers[p].attachment1:Destroy()
+                    tracers[p] = nil
+                end
+            else
+                if highlights[p] then
+                    highlights[p]:Destroy()
+                    highlights[p] = nil
+                end
+                if tracers[p] then
+                    tracers[p].beam:Destroy()
+                    tracers[p].attachment0:Destroy()
+                    tracers[p].attachment1:Destroy()
+                    tracers[p] = nil
+                end
+            end
+        end
+    end)
+    if not success then
+        warn("UpdateESP Error: " .. err)
+    end
+end
+
+local function StartESP()
+    local success, err = pcall(function()
+        if espConnection then
+            espConnection:Disconnect()
+            espConnection = nil
+        end
+        ClearESP() -- Limpa qualquer ESP existente
+        espConnection = game:GetService("RunService").Stepped:Connect(function()
+            UpdateESP()
+        end)
+        for _, p in pairs(game.Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                if espEnabled then
+                    CreateHighlight(p)
+                end
+                if tracersEnabled then
+                    CreateTracer(p)
+                end
+            end
+            p.CharacterAdded:Connect(function()
+                if espEnabled or tracersEnabled then
+                    task.wait(0.5)
+                    UpdateESP()
+                end
+            end)
+        end
+        game.Players.PlayerAdded:Connect(function(p)
+            p.CharacterAdded:Connect(function()
+                if espEnabled or tracersEnabled then
+                    task.wait(0.5)
+                    UpdateESP()
+                end
+            end)
+        end)
+        game.Players.PlayerRemoving:Connect(function(p)
+            if highlights[p] then
+                highlights[p]:Destroy()
+                highlights[p] = nil
+            end
+            if tracers[p] then
+                tracers[p].beam:Destroy()
+                tracers[p].attachment0:Destroy()
+                tracers[p].attachment1:Destroy()
+                tracers[p] = nil
+            end
+        end)
+    end)
+    if not success then
+        warn("StartESP Error: " .. err)
+    end
+end
+
+local function StopESP()
+    local success, err = pcall(function()
+        if espConnection then
+            espConnection:Disconnect()
+            espConnection = nil
+        end
+        ClearESP()
+    end)
+    if not success then
+        warn("StopESP Error: " .. err)
+    end
+end
+
+ESPTab:CreateToggle({
+    Name = "ESP Highlights",
+    CurrentValue = false,
+    Flag = "ESPToggle",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            espEnabled = Value
+            if espEnabled or tracersEnabled then
+                StartESP()
+            else
+                StopESP()
+            end
+        end)
+        if not success then
+            warn("ESP Highlights Callback Error: " .. err)
+        end
+    end,
+})
+
+ESPTab:CreateToggle({
+    Name = "Tracers",
+    CurrentValue = false,
+    Flag = "TracersToggle",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            tracersEnabled = Value
+            if espEnabled or tracersEnabled then
+                StartESP()
+            else
+                StopESP()
+            end
+        end)
+        if not success then
+            warn("Tracers Callback Error: " .. err)
+        end
+    end,
+})
+
+ESPTab:CreateColorPicker({
+    Name = "Highlight & Tracer Color",
+    Color = Color3.fromRGB(255, 0, 0),
+    Flag = "ColorPicker1",
+    Callback = function(Value)
+        local success, err = pcall(function()
+            highlightColor = Value
+            for _, highlight in pairs(highlights) do
+                if highlight then
+                    highlight.FillColor = Value
+                    highlight.OutlineColor = Value
+                end
+            end
+            for _, tracer in pairs(tracers) do
+                if tracer and tracer.beam then
+                    tracer.beam.Color = ColorSequence.new(Value)
+                end
+            end
+        end)
+        if not success then
+            warn("ColorPicker Callback Error: " .. err)
+        end
+    end,
+})
+
+-- Inicializa ESP para jogadores existentes
+if player.Character then
+    task.spawn(function()
+        task.wait(1) -- Aguarda inicialização
+        UpdateESP()
+    end)
+end
